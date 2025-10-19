@@ -1,0 +1,434 @@
+
+# Troubleshooting Guide
+
+Common issues and their solutions for the Interior Design AI feature.
+
+## Table of Contents
+1. [Connection Issues](#connection-issues)
+2. [Authentication Issues](#authentication-issues)
+3. [Edge Function Issues](#edge-function-issues)
+4. [Storage Issues](#storage-issues)
+5. [Image Generation Issues](#image-generation-issues)
+6. [Performance Issues](#performance-issues)
+
+---
+
+## Connection Issues
+
+### ❌ "Supabase credentials not configured"
+
+**Symptoms:**
+- SupabaseDebugger shows "Connected: ✗"
+- Error message about missing credentials
+
+**Solutions:**
+1. Check if `.env` file exists in project root
+2. Verify `.env` contains:
+   ```env
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+3. Restart Expo dev server:
+   ```bash
+   # Stop the server (Ctrl+C)
+   npm run dev
+   ```
+4. Clear Metro bundler cache:
+   ```bash
+   expo start -c
+   ```
+
+### ❌ "Network request failed"
+
+**Symptoms:**
+- Cannot connect to Supabase
+- Timeout errors
+
+**Solutions:**
+1. Check internet connection
+2. Verify Supabase project is active (not paused)
+3. Check if firewall is blocking requests
+4. Try using a different network
+5. Verify Supabase URL is correct
+
+---
+
+## Authentication Issues
+
+### ❌ "Unauthorized" Error
+
+**Symptoms:**
+- API calls return 401 error
+- Cannot generate designs
+- SupabaseDebugger shows "Authenticated: ✗"
+
+**Solutions:**
+
+**Option 1: Sign in with test user**
+```typescript
+// Use SupabaseDebugger component
+// Click "Sign In Test User" button
+```
+
+**Option 2: Create test user manually**
+1. Go to Supabase Dashboard > Authentication > Users
+2. Click "Add user"
+3. Email: `test@example.com`
+4. Password: `testpassword123`
+5. Click "Create user"
+6. Use SupabaseDebugger to sign in
+
+**Option 3: Enable anonymous auth**
+1. Go to Authentication > Settings
+2. Enable "Anonymous sign-ins"
+3. Use this code:
+```typescript
+await supabase.auth.signInAnonymously();
+```
+
+### ❌ "Email not confirmed"
+
+**Symptoms:**
+- Cannot sign in
+- Email confirmation required
+
+**Solutions:**
+1. Go to Authentication > Settings
+2. Disable "Enable email confirmations"
+3. Or check email for confirmation link
+
+### ❌ Session not persisting
+
+**Symptoms:**
+- User signed out after app restart
+- Session lost
+
+**Solutions:**
+1. Verify AsyncStorage is installed:
+   ```bash
+   npm install @react-native-async-storage/async-storage
+   ```
+2. Check Supabase client configuration in `integrations/supabase/client.ts`
+3. Clear app data and sign in again
+
+---
+
+## Edge Function Issues
+
+### ❌ "Function error" or "Provider error"
+
+**Symptoms:**
+- Generation fails with function error
+- 502 Bad Gateway error
+
+**Solutions:**
+
+**Check Edge Function Logs:**
+1. Go to Supabase Dashboard > Edge Functions
+2. Click on `generate-interior-design`
+3. View logs for error details
+
+**Common Causes:**
+
+**1. Missing GEMINI_API_KEY**
+```bash
+# Set the key
+supabase secrets set GEMINI_API_KEY=your_key_here
+```
+
+**2. Invalid Gemini API Key**
+- Verify key at https://aistudio.google.com/apikey
+- Generate new key if needed
+- Update in Supabase secrets
+
+**3. Gemini API Quota Exceeded**
+- Check usage at https://aistudio.google.com
+- Wait for quota reset (usually 1 minute)
+- Consider upgrading plan
+
+**4. Function Not Deployed**
+```bash
+# Redeploy the function
+supabase functions deploy generate-interior-design
+```
+
+### ❌ "Function timeout"
+
+**Symptoms:**
+- Request takes too long
+- Times out after 60 seconds
+
+**Solutions:**
+1. Check Gemini API status
+2. Try with smaller image
+3. Check internet connection
+4. Retry the request
+
+---
+
+## Storage Issues
+
+### ❌ "Upload failed"
+
+**Symptoms:**
+- Generated image cannot be saved
+- Storage error in logs
+
+**Solutions:**
+
+**1. Verify Bucket Exists**
+1. Go to Storage in Supabase Dashboard
+2. Check if `generated-designs` bucket exists
+3. Create if missing (make it Public)
+
+**2. Check Bucket Policies**
+```sql
+-- Allow authenticated users to upload
+CREATE POLICY "Users can upload their own designs"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'generated-designs' AND 
+  auth.uid()::text = (storage.foldername(name))[1]
+);
+
+-- Allow public read
+CREATE POLICY "Public can view designs"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'generated-designs');
+```
+
+**3. Verify Service Role Key**
+- Check `SUPABASE_SERVICE_ROLE_KEY` is set in edge function secrets
+- Verify it's the correct key from Project Settings > API
+
+### ❌ "Image not displaying"
+
+**Symptoms:**
+- Generated image URL returns 404
+- Image shows broken
+
+**Solutions:**
+1. Verify bucket is set to **Public**
+2. Check bucket policies allow public read
+3. Verify URL format is correct
+4. Check if image was actually uploaded (view in Storage)
+5. Try accessing URL directly in browser
+
+---
+
+## Image Generation Issues
+
+### ❌ "No image generated by AI"
+
+**Symptoms:**
+- API returns success but no image
+- Error message about missing image
+
+**Solutions:**
+1. Check Gemini API status
+2. Try different design tool
+3. Try different image
+4. Check edge function logs for details
+5. Verify Gemini model name is correct (`gemini-2.0-flash-exp`)
+
+### ❌ "Invalid image format"
+
+**Symptoms:**
+- Upload fails
+- Format error
+
+**Solutions:**
+1. Use JPEG or PNG format only
+2. Ensure image is not corrupted
+3. Try compressing image
+4. Maximum size: 10MB (recommended: < 5MB)
+
+### ❌ "Generation takes too long"
+
+**Symptoms:**
+- Waiting more than 60 seconds
+- No response
+
+**Solutions:**
+1. Normal generation time: 10-30 seconds
+2. Check internet connection
+3. Try with smaller image
+4. Check Gemini API status
+5. View edge function logs
+
+---
+
+## Performance Issues
+
+### ❌ "App is slow"
+
+**Solutions:**
+1. Clear Metro bundler cache:
+   ```bash
+   expo start -c
+   ```
+2. Restart Expo dev server
+3. Clear app data
+4. Check device storage
+5. Close other apps
+
+### ❌ "High memory usage"
+
+**Solutions:**
+1. Compress images before upload
+2. Clear generated image cache
+3. Limit number of stored images
+4. Restart app
+
+---
+
+## Debugging Tools
+
+### Use SupabaseDebugger Component
+
+Add to your app for quick diagnostics:
+
+```typescript
+import { SupabaseDebugger } from '@/components/SupabaseDebugger';
+
+// Add to your screen
+<SupabaseDebugger />
+```
+
+**Features:**
+- Check connection status
+- Verify authentication
+- Test sign-in
+- View error messages
+
+### Check Console Logs
+
+Enable detailed logging:
+
+```typescript
+// In your component
+console.log('Image URI:', imageUri);
+console.log('Design tool:', selectedTool);
+console.log('Generation result:', result);
+```
+
+### View Edge Function Logs
+
+```bash
+# Using Supabase CLI
+supabase functions logs generate-interior-design
+
+# Or view in dashboard
+# Edge Functions > generate-interior-design > Logs
+```
+
+### Test Edge Function Directly
+
+```bash
+# Using curl
+curl -X POST \
+  https://your-project.supabase.co/functions/v1/generate-interior-design \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "image=@/path/to/image.jpg" \
+  -F "designTool=wall-color"
+```
+
+---
+
+## Common Error Messages
+
+### "Expected multipart/form-data"
+**Cause:** Wrong content type
+**Solution:** Ensure using FormData for image upload
+
+### "Image file is required"
+**Cause:** No image in request
+**Solution:** Verify image is attached to FormData
+
+### "Design tool selection is required"
+**Cause:** Missing designTool parameter
+**Solution:** Include designTool in request
+
+### "Unauthorized"
+**Cause:** Not signed in or invalid token
+**Solution:** Sign in with valid credentials
+
+### "Provider error"
+**Cause:** Gemini API issue
+**Solution:** Check API key and quota
+
+---
+
+## Getting Help
+
+### Before Asking for Help
+
+1. ✅ Check this troubleshooting guide
+2. ✅ Review console logs
+3. ✅ Check edge function logs
+4. ✅ Use SupabaseDebugger
+5. ✅ Verify all environment variables
+6. ✅ Test with different image/tool
+
+### Information to Include
+
+When reporting issues, include:
+- Error message (exact text)
+- Console logs
+- Edge function logs
+- Steps to reproduce
+- Environment (iOS/Android/Web)
+- Expo version
+- Node version
+
+### Resources
+
+- **Supabase Docs**: https://supabase.com/docs
+- **Gemini API Docs**: https://ai.google.dev/docs
+- **Expo Docs**: https://docs.expo.dev
+- **Setup Guide**: SETUP_INSTRUCTIONS.md
+- **API Reference**: API_REFERENCE.md
+
+---
+
+## Prevention Tips
+
+### Best Practices
+
+1. **Always check authentication before API calls**
+2. **Validate images before upload**
+3. **Handle errors gracefully**
+4. **Show loading states**
+5. **Implement retry logic**
+6. **Monitor API usage**
+7. **Keep dependencies updated**
+8. **Test on multiple devices**
+
+### Monitoring
+
+Set up monitoring for:
+- API call success rate
+- Generation time
+- Error frequency
+- Storage usage
+- API quota usage
+
+### Regular Maintenance
+
+- [ ] Check Supabase project status weekly
+- [ ] Monitor API usage monthly
+- [ ] Review error logs regularly
+- [ ] Update dependencies quarterly
+- [ ] Test on new devices/OS versions
+
+---
+
+**Still having issues?** 
+
+1. Review the full setup guide: SETUP_INSTRUCTIONS.md
+2. Check the API reference: API_REFERENCE.md
+3. Verify your setup with: SETUP_CHECKLIST.md
+
+Most issues are related to configuration. Double-check all environment variables and Supabase settings!

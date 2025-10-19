@@ -6,13 +6,14 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { GlassView } from 'expo-glass-effect';
 import { colors } from '@/styles/commonStyles';
 import * as ImagePicker from 'expo-image-picker';
+import { useInteriorDesign, DesignTool } from '@/hooks/useInteriorDesign';
 
 export default function InteriorDesignScreen() {
   const router = useRouter();
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<DesignTool | null>(null);
+  
+  const { generate, loading, error, data, reset } = useInteriorDesign();
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -24,7 +25,7 @@ export default function InteriorDesignScreen() {
 
     if (!result.canceled) {
       setUploadedImage(result.assets[0].uri);
-      setGeneratedImage(null);
+      reset(); // Reset previous generation
       console.log('Image selected:', result.assets[0].uri);
     }
   };
@@ -45,12 +46,12 @@ export default function InteriorDesignScreen() {
 
     if (!result.canceled) {
       setUploadedImage(result.assets[0].uri);
-      setGeneratedImage(null);
+      reset(); // Reset previous generation
       console.log('Photo taken:', result.assets[0].uri);
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!uploadedImage) {
       Alert.alert('No Image', 'Please upload an image first');
       return;
@@ -60,41 +61,52 @@ export default function InteriorDesignScreen() {
       return;
     }
 
-    setIsGenerating(true);
     console.log('Generating with tool:', selectedTool);
 
-    // Simulate generation process
-    setTimeout(() => {
-      setGeneratedImage(uploadedImage); // In real app, this would be the AI-generated result
-      setIsGenerating(false);
-      Alert.alert('Success', 'Interior design generated successfully!');
-    }, 2000);
+    const result = await generate({
+      imageUri: uploadedImage,
+      designTool: selectedTool,
+    });
+
+    if (result) {
+      Alert.alert(
+        'Success!', 
+        `Interior design generated in ${(result.duration_ms / 1000).toFixed(1)}s`,
+        [{ text: 'OK' }]
+      );
+    } else if (error) {
+      Alert.alert(
+        'Generation Failed', 
+        error || 'An error occurred while generating the design. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const designTools = [
     {
-      id: 'wall-color',
+      id: 'wall-color' as DesignTool,
       title: 'Wall Colors',
       description: 'Change wall colors and textures',
       icon: 'paintbrush.fill',
       color: colors.primary,
     },
     {
-      id: 'furniture',
+      id: 'furniture' as DesignTool,
       title: 'Furniture',
       description: 'Add and arrange furniture',
       icon: 'sofa.fill',
       color: colors.secondary,
     },
     {
-      id: 'lighting',
+      id: 'lighting' as DesignTool,
       title: 'Lighting',
       description: 'Adjust lighting and fixtures',
       icon: 'lightbulb.fill',
       color: colors.accent,
     },
     {
-      id: 'flooring',
+      id: 'flooring' as DesignTool,
       title: 'Flooring',
       description: 'Change floor materials',
       icon: 'square.grid.2x2.fill',
@@ -179,7 +191,7 @@ export default function InteriorDesignScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Design Tools</Text>
             <Text style={styles.sectionDescription}>
-              Choose from our professional design tools
+              Choose from our professional design tools powered by AI
             </Text>
 
             <View style={styles.toolsGrid}>
@@ -219,14 +231,21 @@ export default function InteriorDesignScreen() {
             </View>
           </View>
 
+          {error && (
+            <View style={styles.errorContainer}>
+              <IconSymbol name="exclamationmark.triangle.fill" color="#FF3B30" size={24} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           {uploadedImage && selectedTool && (
             <Pressable
               onPress={handleGenerate}
-              disabled={isGenerating}
+              disabled={loading}
               style={({ pressed }) => [
                 styles.generateButton,
-                pressed && !isGenerating && styles.generateButtonPressed,
-                isGenerating && styles.generateButtonDisabled
+                pressed && !loading && styles.generateButtonPressed,
+                loading && styles.generateButtonDisabled
               ]}
             >
               <GlassView 
@@ -236,33 +255,51 @@ export default function InteriorDesignScreen() {
                 ]}
                 glassEffectStyle="regular"
               >
-                {isGenerating ? (
+                {loading ? (
                   <>
                     <ActivityIndicator color="white" size="small" />
-                    <Text style={styles.generateButtonText}>Generating...</Text>
+                    <Text style={styles.generateButtonText}>Generating with AI...</Text>
                   </>
                 ) : (
                   <>
                     <IconSymbol name="wand.and.stars" color="white" size={24} />
-                    <Text style={styles.generateButtonText}>Generate Result</Text>
+                    <Text style={styles.generateButtonText}>Generate with Gemini AI</Text>
                   </>
                 )}
               </GlassView>
             </Pressable>
           )}
 
-          {generatedImage && (
+          {data && data.url && (
             <View style={styles.imageSection}>
-              <Text style={styles.imageSectionTitle}>Generated Result</Text>
+              <Text style={styles.imageSectionTitle}>AI Generated Result</Text>
               <View style={styles.imageContainer}>
-                <Image source={{ uri: generatedImage }} style={styles.image} resizeMode="cover" />
+                <Image source={{ uri: data.url }} style={styles.image} resizeMode="cover" />
                 <View style={styles.resultBadge}>
                   <IconSymbol name="checkmark.circle.fill" color="white" size={20} />
-                  <Text style={styles.resultBadgeText}>Generated</Text>
+                  <Text style={styles.resultBadgeText}>Generated by Gemini AI</Text>
                 </View>
+              </View>
+              <View style={styles.resultInfo}>
+                <Text style={styles.resultInfoText}>
+                  Generated in {(data.duration_ms / 1000).toFixed(1)}s
+                </Text>
+                <Text style={styles.resultInfoText}>
+                  Tool: {designTools.find(t => t.id === data.designTool)?.title}
+                </Text>
               </View>
             </View>
           )}
+
+          <View style={styles.infoSection}>
+            <View style={styles.infoCard}>
+              <IconSymbol name="info.circle.fill" color={colors.primary} size={24} />
+              <Text style={styles.infoText}>
+                This feature uses Google&apos;s Gemini AI to transform your interior spaces. 
+                Upload a photo, select a design tool, and let AI reimagine your room!
+              </Text>
+            </View>
+          </View>
         </ScrollView>
       </View>
     </>
@@ -357,8 +394,20 @@ const styles = StyleSheet.create({
   },
   resultBadgeText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  resultInfo: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 12,
+    gap: 4,
+  },
+  resultInfoText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   toolsGrid: {
     flexDirection: 'row',
@@ -407,6 +456,21 @@ const styles = StyleSheet.create({
     top: 12,
     right: 12,
   },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 12,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
   generateButton: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -431,5 +495,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
+  },
+  infoSection: {
+    marginBottom: 32,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    padding: 16,
+    backgroundColor: 'rgba(0,122,255,0.1)',
+    borderRadius: 12,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 });
