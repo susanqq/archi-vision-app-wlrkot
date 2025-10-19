@@ -1,78 +1,92 @@
+
 import React from "react";
-import { Stack, Link } from "expo-router";
-import { FlatList, Pressable, StyleSheet, View, Text, Alert, Platform } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { ScrollView, Pressable, StyleSheet, View, Text, Platform } from "react-native";
 import { IconSymbol } from "@/components/IconSymbol";
 import { GlassView } from "expo-glass-effect";
 import { useTheme } from "@react-navigation/native";
-
-const ICON_COLOR = "#007AFF";
+import { colors } from "@/styles/commonStyles";
 
 export default function HomeScreen() {
   const theme = useTheme();
-  const modalDemos = [
+  const router = useRouter();
+
+  const designModules = [
     {
-      title: "Standard Modal",
-      description: "Full screen modal presentation",
-      route: "/modal",
-      color: "#007AFF",
+      id: 'interior',
+      title: "Interior Design",
+      description: "Transform indoor spaces with style",
+      icon: "house.fill",
+      color: colors.primary,
+      route: "/interior-design",
     },
     {
-      title: "Form Sheet",
-      description: "Bottom sheet with detents and grabber",
-      route: "/formsheet",
+      id: 'exterior',
+      title: "Exterior Design",
+      description: "Enhance your home's curb appeal",
+      icon: "building.2.fill",
+      color: colors.secondary,
+      route: "/exterior-design",
+    },
+    {
+      id: 'landscaping',
+      title: "Landscaping",
+      description: "Design beautiful outdoor spaces",
+      icon: "leaf.fill",
       color: "#34C759",
+      route: "/landscaping",
     },
     {
-      title: "Transparent Modal",
-      description: "Overlay without obscuring background",
-      route: "/transparent-modal",
-      color: "#FF9500",
+      id: 'staging',
+      title: "Virtual Staging",
+      description: "Stage properties virtually",
+      icon: "sofa.fill",
+      color: colors.accent,
+      route: "/virtual-staging",
+    },
+    {
+      id: 'floorplan',
+      title: "Floor Plan",
+      description: "Create and edit floor plans",
+      icon: "square.grid.3x3",
+      color: "#AF52DE",
+      route: "/floorplan",
+    },
+    {
+      id: 'materials',
+      title: "Material Overlay",
+      description: "Visualize different materials",
+      icon: "paintbrush.fill",
+      color: "#FF2D55",
+      route: "/material-overlay",
     }
   ];
 
-  const renderModalDemo = ({ item }: { item: (typeof modalDemos)[0] }) => (
-    <GlassView style={[
-      styles.demoCard,
-      Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-    ]} glassEffectStyle="regular">
-      <View style={[styles.demoIcon, { backgroundColor: item.color }]}>
-        <IconSymbol name="square.grid.3x3" color="white" size={24} />
-      </View>
-      <View style={styles.demoContent}>
-        <Text style={[styles.demoTitle, { color: theme.colors.text }]}>{item.title}</Text>
-        <Text style={[styles.demoDescription, { color: theme.dark ? '#98989D' : '#666' }]}>{item.description}</Text>
-      </View>
-      <Link href={item.route as any} asChild>
-        <Pressable>
-          <GlassView style={[
-            styles.tryButton,
-            Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)' }
-          ]} glassEffectStyle="clear">
-            <Text style={[styles.tryButtonText, { color: theme.colors.primary }]}>Try It</Text>
-          </GlassView>
-        </Pressable>
-      </Link>
-    </GlassView>
-  );
-
-  const renderHeaderRight = () => (
+  const renderDesignModule = (item: typeof designModules[0]) => (
     <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
+      key={item.id}
+      onPress={() => router.push(item.route as any)}
+      style={({ pressed }) => [
+        styles.moduleCard,
+        pressed && styles.moduleCardPressed
+      ]}
     >
-      <IconSymbol name="plus" color={theme.colors.primary} />
-    </Pressable>
-  );
-
-  const renderHeaderLeft = () => (
-    <Pressable
-      onPress={() => Alert.alert("Not Implemented", "This feature is not implemented yet")}
-      style={styles.headerButtonContainer}
-    >
-      <IconSymbol
-        name="gear"
-        color={theme.colors.primary}
-      />
+      <GlassView 
+        style={[
+          styles.moduleCardInner,
+          Platform.OS !== 'ios' && { backgroundColor: 'rgba(255,255,255,0.95)' }
+        ]} 
+        glassEffectStyle="regular"
+      >
+        <View style={[styles.moduleIcon, { backgroundColor: item.color }]}>
+          <IconSymbol name={item.icon as any} color="white" size={32} />
+        </View>
+        <View style={styles.moduleContent}>
+          <Text style={styles.moduleTitle}>{item.title}</Text>
+          <Text style={styles.moduleDescription}>{item.description}</Text>
+        </View>
+        <IconSymbol name="chevron.right" color={colors.textSecondary} size={20} />
+      </GlassView>
     </Pressable>
   );
 
@@ -81,24 +95,37 @@ export default function HomeScreen() {
       {Platform.OS === 'ios' && (
         <Stack.Screen
           options={{
-            title: "Building the app...",
-            headerRight: renderHeaderRight,
-            headerLeft: renderHeaderLeft,
+            title: "Spatial Design Studio",
+            headerLargeTitle: true,
           }}
         />
       )}
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <FlatList
-          data={modalDemos}
-          renderItem={renderModalDemo}
-          keyExtractor={(item) => item.route}
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ScrollView
           contentContainerStyle={[
-            styles.listContainer,
-            Platform.OS !== 'ios' && styles.listContainerWithTabBar
+            styles.scrollContent,
+            Platform.OS !== 'ios' && styles.scrollContentWithTabBar
           ]}
-          contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
-        />
+        >
+          <View style={styles.header}>
+            <Text style={styles.welcomeText}>Welcome to</Text>
+            <Text style={styles.appTitle}>Spatial Design Studio</Text>
+            <Text style={styles.subtitle}>
+              Professional design tools for homeowners, realtors, contractors, and designers
+            </Text>
+          </View>
+
+          <View style={styles.modulesContainer}>
+            {designModules.map(renderDesignModule)}
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              Select a module to get started
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </>
   );
@@ -107,55 +134,82 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor handled dynamically
   },
-  listContainer: {
-    paddingVertical: 16,
+  scrollContent: {
+    paddingVertical: 20,
     paddingHorizontal: 16,
   },
-  listContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
+  scrollContentWithTabBar: {
+    paddingBottom: 100,
   },
-  demoCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
+  header: {
+    marginBottom: 32,
     alignItems: 'center',
   },
-  demoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  welcomeText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    paddingHorizontal: 20,
+  },
+  modulesContainer: {
+    gap: 12,
+  },
+  moduleCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  moduleCardPressed: {
+    opacity: 0.7,
+  },
+  moduleCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+  },
+  moduleIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  demoContent: {
+  moduleContent: {
     flex: 1,
   },
-  demoTitle: {
+  moduleTitle: {
     fontSize: 18,
     fontWeight: '600',
+    color: colors.text,
     marginBottom: 4,
-    // color handled dynamically
   },
-  demoDescription: {
+  moduleDescription: {
     fontSize: 14,
+    color: colors.textSecondary,
     lineHeight: 18,
-    // color handled dynamically
   },
-  headerButtonContainer: {
-    padding: 6,
+  footer: {
+    marginTop: 32,
+    alignItems: 'center',
   },
-  tryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  tryButtonText: {
+  footerText: {
     fontSize: 14,
-    fontWeight: '600',
-    // color handled dynamically
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
