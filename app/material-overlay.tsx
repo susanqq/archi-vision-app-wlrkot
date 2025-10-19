@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { GlassView } from 'expo-glass-effect';
@@ -9,6 +9,10 @@ import * as ImagePicker from 'expo-image-picker';
 
 export default function MaterialOverlayScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('flooring');
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -19,8 +23,31 @@ export default function MaterialOverlayScreen() {
     });
 
     if (!result.canceled) {
+      setUploadedImage(result.assets[0].uri);
+      setGeneratedImage(null);
       console.log('Image selected:', result.assets[0].uri);
     }
+  };
+
+  const handleGenerate = () => {
+    if (!uploadedImage) {
+      Alert.alert('No Image', 'Please upload an image first');
+      return;
+    }
+    if (!selectedMaterial) {
+      Alert.alert('No Material', 'Please select a material first');
+      return;
+    }
+
+    setIsGenerating(true);
+    console.log('Generating with material:', selectedMaterial);
+
+    // Simulate generation process
+    setTimeout(() => {
+      setGeneratedImage(uploadedImage); // In real app, this would be the AI-generated result
+      setIsGenerating(false);
+      Alert.alert('Success', 'Material overlay generated successfully!');
+    }, 2000);
   };
 
   const materialCategories = [
@@ -128,6 +155,15 @@ export default function MaterialOverlayScreen() {
             </GlassView>
           </Pressable>
 
+          {uploadedImage && (
+            <View style={styles.imageSection}>
+              <Text style={styles.imageSectionTitle}>Uploaded Image</Text>
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: uploadedImage }} style={styles.image} resizeMode="cover" />
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Category</Text>
             <ScrollView 
@@ -140,6 +176,7 @@ export default function MaterialOverlayScreen() {
                   key={category.id}
                   onPress={() => {
                     setSelectedCategory(category.id);
+                    setSelectedMaterial(null);
                     console.log('Category selected:', category.id);
                   }}
                   style={({ pressed }) => [
@@ -182,11 +219,12 @@ export default function MaterialOverlayScreen() {
                 <Pressable
                   key={material.id}
                   onPress={() => {
+                    setSelectedMaterial(material.id);
                     console.log('Material selected:', material.id);
-                    Alert.alert('Material Selected', `${material.name} will be applied to your image`);
                   }}
                   style={({ pressed }) => [
                     styles.materialCard,
+                    selectedMaterial === material.id && styles.materialCardSelected,
                     pressed && styles.materialCardPressed
                   ]}
                 >
@@ -199,11 +237,61 @@ export default function MaterialOverlayScreen() {
                   >
                     <View style={[styles.materialSwatch, { backgroundColor: material.color }]} />
                     <Text style={styles.materialName}>{material.name}</Text>
+                    {selectedMaterial === material.id && (
+                      <View style={styles.selectedBadge}>
+                        <IconSymbol name="checkmark.circle.fill" color="#34C759" size={20} />
+                      </View>
+                    )}
                   </GlassView>
                 </Pressable>
               ))}
             </View>
           </View>
+
+          {uploadedImage && selectedMaterial && (
+            <Pressable
+              onPress={handleGenerate}
+              disabled={isGenerating}
+              style={({ pressed }) => [
+                styles.generateButton,
+                pressed && !isGenerating && styles.generateButtonPressed,
+                isGenerating && styles.generateButtonDisabled
+              ]}
+            >
+              <GlassView 
+                style={[
+                  styles.generateButtonInner,
+                  Platform.OS !== 'ios' && { backgroundColor: 'rgba(52, 199, 89, 0.95)' }
+                ]}
+                glassEffectStyle="regular"
+              >
+                {isGenerating ? (
+                  <>
+                    <ActivityIndicator color="white" size="small" />
+                    <Text style={styles.generateButtonText}>Generating...</Text>
+                  </>
+                ) : (
+                  <>
+                    <IconSymbol name="wand.and.stars" color="white" size={24} />
+                    <Text style={styles.generateButtonText}>Generate Result</Text>
+                  </>
+                )}
+              </GlassView>
+            </Pressable>
+          )}
+
+          {generatedImage && (
+            <View style={styles.imageSection}>
+              <Text style={styles.imageSectionTitle}>Generated Result</Text>
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: generatedImage }} style={styles.image} resizeMode="cover" />
+                <View style={styles.resultBadge}>
+                  <IconSymbol name="checkmark.circle.fill" color="white" size={20} />
+                  <Text style={styles.resultBadgeText}>Generated</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           <View style={styles.infoSection}>
             <GlassView 
@@ -217,7 +305,7 @@ export default function MaterialOverlayScreen() {
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>How it works</Text>
                 <Text style={styles.infoText}>
-                  Upload a photo, select a material category, then tap on any material to see how it looks in your space
+                  Upload a photo, select a material category, choose a material, then tap Generate to see how it looks in your space
                 </Text>
               </View>
             </GlassView>
@@ -287,6 +375,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+  imageSection: {
+    marginBottom: 32,
+  },
+  imageSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  imageContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.textSecondary,
+    opacity: 0.1,
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: 250,
+  },
+  resultBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  resultBadgeText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   section: {
     marginBottom: 32,
   },
@@ -339,10 +464,15 @@ const styles = StyleSheet.create({
   materialCardPressed: {
     opacity: 0.7,
   },
+  materialCardSelected: {
+    borderWidth: 3,
+    borderColor: '#34C759',
+  },
   materialCardInner: {
     padding: 12,
     borderRadius: 12,
     alignItems: 'center',
+    position: 'relative',
   },
   materialSwatch: {
     width: '100%',
@@ -358,6 +488,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  generateButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 32,
+  },
+  generateButtonPressed: {
+    opacity: 0.8,
+  },
+  generateButtonDisabled: {
+    opacity: 0.6,
+  },
+  generateButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#34C759',
+    borderRadius: 16,
+    gap: 12,
+  },
+  generateButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
   },
   infoSection: {
     marginTop: 16,

@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, Alert, Image, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import { GlassView } from 'expo-glass-effect';
@@ -8,6 +8,11 @@ import { colors } from '@/styles/commonStyles';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function VirtualStagingScreen() {
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -17,8 +22,31 @@ export default function VirtualStagingScreen() {
     });
 
     if (!result.canceled) {
+      setUploadedImage(result.assets[0].uri);
+      setGeneratedImage(null);
       console.log('Image selected:', result.assets[0].uri);
     }
+  };
+
+  const handleGenerate = () => {
+    if (!uploadedImage) {
+      Alert.alert('No Image', 'Please upload an image first');
+      return;
+    }
+    if (!selectedStyle) {
+      Alert.alert('No Style', 'Please select a staging style first');
+      return;
+    }
+
+    setIsGenerating(true);
+    console.log('Generating with style:', selectedStyle);
+
+    // Simulate generation process
+    setTimeout(() => {
+      setGeneratedImage(uploadedImage); // In real app, this would be the AI-generated result
+      setIsGenerating(false);
+      Alert.alert('Success', 'Virtual staging generated successfully!');
+    }, 2000);
   };
 
   const stagingStyles = [
@@ -109,6 +137,15 @@ export default function VirtualStagingScreen() {
             </GlassView>
           </Pressable>
 
+          {uploadedImage && (
+            <View style={styles.imageSection}>
+              <Text style={styles.imageSectionTitle}>Uploaded Image</Text>
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: uploadedImage }} style={styles.image} resizeMode="cover" />
+              </View>
+            </View>
+          )}
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Choose a Style</Text>
             <Text style={styles.sectionDescription}>
@@ -119,11 +156,12 @@ export default function VirtualStagingScreen() {
                 <Pressable
                   key={style.id}
                   onPress={() => {
+                    setSelectedStyle(style.id);
                     console.log('Style selected:', style.id);
-                    Alert.alert('Coming Soon', `${style.title} staging will be available soon!`);
                   }}
                   style={({ pressed }) => [
                     styles.styleCard,
+                    selectedStyle === style.id && styles.styleCardSelected,
                     pressed && styles.styleCardPressed
                   ]}
                 >
@@ -139,11 +177,61 @@ export default function VirtualStagingScreen() {
                     </View>
                     <Text style={styles.styleTitle}>{style.title}</Text>
                     <Text style={styles.styleDescription}>{style.description}</Text>
+                    {selectedStyle === style.id && (
+                      <View style={styles.selectedBadge}>
+                        <IconSymbol name="checkmark.circle.fill" color="#34C759" size={20} />
+                      </View>
+                    )}
                   </GlassView>
                 </Pressable>
               ))}
             </View>
           </View>
+
+          {uploadedImage && selectedStyle && (
+            <Pressable
+              onPress={handleGenerate}
+              disabled={isGenerating}
+              style={({ pressed }) => [
+                styles.generateButton,
+                pressed && !isGenerating && styles.generateButtonPressed,
+                isGenerating && styles.generateButtonDisabled
+              ]}
+            >
+              <GlassView 
+                style={[
+                  styles.generateButtonInner,
+                  Platform.OS !== 'ios' && { backgroundColor: 'rgba(52, 199, 89, 0.95)' }
+                ]}
+                glassEffectStyle="regular"
+              >
+                {isGenerating ? (
+                  <>
+                    <ActivityIndicator color="white" size="small" />
+                    <Text style={styles.generateButtonText}>Generating...</Text>
+                  </>
+                ) : (
+                  <>
+                    <IconSymbol name="wand.and.stars" color="white" size={24} />
+                    <Text style={styles.generateButtonText}>Generate Result</Text>
+                  </>
+                )}
+              </GlassView>
+            </Pressable>
+          )}
+
+          {generatedImage && (
+            <View style={styles.imageSection}>
+              <Text style={styles.imageSectionTitle}>Generated Result</Text>
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: generatedImage }} style={styles.image} resizeMode="cover" />
+                <View style={styles.resultBadge}>
+                  <IconSymbol name="checkmark.circle.fill" color="white" size={20} />
+                  <Text style={styles.resultBadgeText}>Generated</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           <View style={styles.infoSection}>
             <GlassView 
@@ -224,6 +312,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
   },
+  imageSection: {
+    marginBottom: 32,
+  },
+  imageSectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  imageContainer: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: colors.textSecondary,
+    opacity: 0.1,
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: 250,
+  },
+  resultBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.9)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  resultBadgeText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   section: {
     marginBottom: 32,
   },
@@ -252,10 +377,15 @@ const styles = StyleSheet.create({
   styleCardPressed: {
     opacity: 0.7,
   },
+  styleCardSelected: {
+    borderWidth: 3,
+    borderColor: '#34C759',
+  },
   styleCardInner: {
     padding: 16,
     borderRadius: 16,
     minHeight: 140,
+    position: 'relative',
   },
   styleIcon: {
     width: 48,
@@ -275,6 +405,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     lineHeight: 18,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
+  generateButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 32,
+  },
+  generateButtonPressed: {
+    opacity: 0.8,
+  },
+  generateButtonDisabled: {
+    opacity: 0.6,
+  },
+  generateButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#34C759',
+    borderRadius: 16,
+    gap: 12,
+  },
+  generateButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
   },
   infoSection: {
     marginTop: 16,
